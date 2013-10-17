@@ -68,6 +68,10 @@ public class JabberMain {
             System.out.println();
             System.out.println( "Welcome " + jid.getJabberID() + "/" + jid.getResource() + " ! " );
             
+            // Start the XmppReceiver on another thread:
+            XmppReceiver receiver = new XmppReceiver(connection);
+            Thread newThread = new Thread(receiver);
+            newThread.start();
 
             // Begin user interaction:
             
@@ -90,8 +94,8 @@ public class JabberMain {
     					case "@roster":
     						break;
     					case "@chat":
-    						String receiver = getWordAtIndex(1, currentLine);
-    						beginChattingSession(receiver);
+    						String receiverEmail = getWordAtIndex(1, currentLine);
+    						beginChattingSession(receiverEmail);
     						break;
     					case "@end":
     						// The while loop will terminate

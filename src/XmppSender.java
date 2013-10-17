@@ -31,7 +31,20 @@ public class XmppSender {
 	    this.chatID = generateChatID();
 	}
 	
-	// One-to-one chat session
+	/** One-to-one chat session
+	 * message format:
+	 * 	<message
+	       from='romeo@example.net/orchard'
+	       id='sl3nx51f'
+	       to='juliet@example.com/balcony'
+	       type='chat'
+	       xml:lang='en'>
+     	<body>Neither, fair saint, if either thee dislike.</body>
+   		</message>
+	 * @param message
+	 * @param receiver
+	 * @throws IOException
+	 */
 	public void sendMessageToClient(String message, String receiver) throws IOException {
 		StringBuilder temp = new StringBuilder();
 		temp.append("<message")
