@@ -10,7 +10,12 @@
                   [more Jabber ID details] ... 
  */
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.net.Socket;
 import java.util.*;
+
+import javax.xml.stream.XMLStreamReader;
 
 /**
    Class containing the {@link #main(String[])} method.
@@ -55,7 +60,18 @@ public class JabberMain {
             // See the documentation of the XmppConnection class for details.
             System.out.println();
             System.out.println( "Welcome " + jid.getJabberID() + "/" + jid.getResource() + " ! " );
-            System.out.println( "** You need to implement the 3 tasks **" );
+            
+            // Task 1:
+            Socket socket = connection.getSocket();
+            BufferedReader reader = connection.getReader();
+            BufferedWriter writer = connection.getWriter();
+            XMLStreamReader parser = connection.getParser();
+            
+            writer.write("Hello! Zhixing");
+            String line = reader.readLine();
+            System.out.println("Read from socket: " + line);
+            System.out.println("Finished Chatting. Hope you had fun!");
+            
         }
         catch ( Exception e ) {
             System.err.println( "Encountered exception in main method" );
