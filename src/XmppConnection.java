@@ -97,6 +97,11 @@ class XmppConnection {
     public String getStreamID() {
         return streamID;
     }
+    
+    /** Gets the jabber ID. */
+    public JabberID getJabberID(){
+    	return jid;
+    }
 
     /** Closes the socket connection. */
     public void close() 
@@ -122,27 +127,6 @@ class XmppConnection {
             isUserAuthenticated = false;
             isResourceBound = false;
         }
-    }
-    
-    public void send(String receiver, String content ) 
-    		throws IOException {
-    	// Use a StringBuilder since it is much more 
-        //  efficient than string concatenation
-        StringBuilder sb = new StringBuilder();
-        sb.append( "<message" );
-        sb.append( " from=\"" ).append( jid.getJabberID() ).append("/").append(jid.getResource()).append( "\"" );
-        //sb.append( " id=\"" ).append( "saddasdas" ).append( "\"" );
-        sb.append( " to=\"" ).append( receiver ).append( "\"" );
-        sb.append( " type=\"").append( "chat").append( "\"" );
-        sb.append( " xml:lang=\"en\">" );
-        sb.append( " <subject>I implore you!</subject>" );
-        sb.append( " <body>" + content + "</body> " );
-        sb.append( "</message>" );
-        String message = sb.toString();
-		System.out.println(message);
-        writer.write( message );
-        writer.flush();
-        System.out.println("Send message from "+jid.getJabberID()+"/"+jid.getResource()+" to "+receiver);
     }
 
     /* ***  PRIVATE IMPLEMENTATION DETAILS  *** */

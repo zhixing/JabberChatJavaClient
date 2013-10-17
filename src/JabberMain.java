@@ -12,6 +12,8 @@
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.util.*;
 
@@ -25,6 +27,11 @@ import javax.xml.stream.XMLStreamReader;
    {@link XmppConnection} class.
  */
 public class JabberMain {
+
+    /** XMPP connection. */
+    private static XmppConnection connection = null;
+    private static InputStreamReader streamReader;
+    private static BufferedReader in;
 
     /** Main method that starts off everything. */
     public static void main( String[] args ) {
@@ -61,16 +68,48 @@ public class JabberMain {
             System.out.println();
             System.out.println( "Welcome " + jid.getJabberID() + "/" + jid.getResource() + " ! " );
             
-            // Task 1:
-            Socket socket = connection.getSocket();
-            BufferedReader reader = connection.getReader();
-            BufferedWriter writer = connection.getWriter();
-            XMLStreamReader parser = connection.getParser();
+
+            // Begin user interaction:
             
-            writer.write("Hello! Zhixing");
-            String line = reader.readLine();
-            System.out.println("Read from socket: " + line);
-            System.out.println("Finished Chatting. Hope you had fun!");
+            String currentLine = "";
+            String command = "";
+    		System.out.println("Type '@help' to see the available commands.");
+    		streamReader = new InputStreamReader(System.in);
+    		in = new BufferedReader(streamReader);
+
+    		try{
+    			currentLine = in.readLine();
+    			command = getWordAtIndex(0, currentLine);
+    			
+    			while(!command.equals("@end")){
+    				
+    				switch(command){
+    					case "@help":
+    						displayHelpInformation();
+    						break;
+    					case "@roster":
+    						break;
+    					case "@chat":
+    						String receiver = getWordAtIndex(1, currentLine);
+    						beginChattingSession(receiver);
+    						break;
+    					case "@end":
+    						// The while loop will terminate
+    						break;
+    					default:
+    						System.out.println("Invalid command. Type Type '@help' to see the available commands.");
+    						break;
+    				}
+    				
+    				currentLine = in.readLine();
+        			command = getWordAtIndex(0, currentLine);
+    			}
+    		} catch(IOException e){
+                System.err.println( "Encountered exception during user interaction" );
+                e.printStackTrace();
+    		}
+            
+            System.out.println("Exited. Hope you had fun!");
             
         }
         catch ( Exception e ) {
@@ -91,6 +130,35 @@ public class JabberMain {
                 // Ignore
             }
         }
+    }
+    
+    /** Show help */
+    private static void displayHelpInformation(){
+    	System.out.println("@roster - Gets the roster list");
+    	System.out.println("@chat <friend_jabber_id> - This ends any ongoing chat session, and starts a new chat session with a friend with specified Jabber ID.");
+    	System.out.println("@end - End any ongoing chat");
+    	System.out.println("@help - Display this help menu");
+    }
+    
+    /** Chat */
+    private static void beginChattingSession (String receiver)throws IOException{
+    	System.out.println("Start chatting with " + receiver);
+    	
+    	XmppSender sender = new XmppSender(connection);
+		String currentLine = in.readLine();
+		while (!currentLine.equals("@end")){
+			System.out.println(currentLine);
+			sender.sendMessageToClient(currentLine, receiver);
+			currentLine = in.readLine();
+		}
+		
+		System.out.println("Ended chatting with " + receiver);
+    }
+    
+    /** Get the first word of a string. Words are seperated by space */
+    private static String getWordAtIndex(int index, String string){
+    	String arr[] = string.split(" ");
+    	return arr[index];    	
     }
 
     /** Helper method that gets the list of Jabber IDs specified as args. */
@@ -119,6 +187,4 @@ public class JabberMain {
         return jidList;
     }
 
-    /** XMPP connection. */
-    private static XmppConnection connection = null;
 }
