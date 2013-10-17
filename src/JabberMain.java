@@ -93,6 +93,7 @@ public class JabberMain {
     						displayHelpInformation();
     						break;
     					case "@roster":
+    						displayContactList();
     						break;
     					case "@chat":
     						String receiverEmail = getWordAtIndex(1, currentLine);
@@ -144,6 +145,17 @@ public class JabberMain {
     	System.out.println("@end - End any ongoing chat");
     	System.out.println("@help - Display this help menu");
     }
+    
+    /** Retrieve and display contact list */
+    private static void displayContactList(){
+    	try {
+			senderReceiver.sendRoasterRequest();
+		} catch (Exception e) {
+			System.out.println("Error occured when sending request for contact list");
+			e.printStackTrace();
+		}
+    }
+
     
     /** Chat */
     private static void beginChattingSession (String receiver)throws IOException{

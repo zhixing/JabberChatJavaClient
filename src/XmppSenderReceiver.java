@@ -112,8 +112,32 @@ public class XmppSenderReceiver implements Runnable{
 	}
 	
 	private void handleQuery(){
-		
+		boolean done = false;
+		System.out.println("Contact list:");
+		while (!done) {
+
+			int eventType;
+			try {
+				eventType = parser.next();
+				if (eventType == XMLStreamConstants.START_ELEMENT) {
+
+					if (parser.getLocalName().equals("item")) {
+						// Add the authentication mechanism to the list
+						System.out.println(parser.getAttributeValue(0));
+
+					}
+				} else if (eventType == XMLStreamConstants.END_ELEMENT) {
+					if (parser.getLocalName().equals("query")) {
+						done = true;
+					}
+				}
+			} catch (XMLStreamException e) {
+				System.err.println("Error detected when parsing the query. In XmppReceiver");
+				e.printStackTrace();
+			}
+		}
 	}
+	
 	
 	/** senderID is in the format of: sender@email.com/resource 	 */
 	private String getSenderEmail(String senderID){
@@ -173,6 +197,29 @@ public class XmppSenderReceiver implements Runnable{
 		writer.write(messageToSend);
         writer.flush();
         
+	}
+	
+	/**
+	 * Message format:
+	 * <iq from='juliet@example.com/balcony'
+	          id='bv1bs71f'
+	          type='get'>
+	       <query xmlns='jabber:iq:roster'/>
+     	</iq>
+	 */
+	public void sendRoasterRequest() throws Exception{
+		StringBuilder temp = new StringBuilder();
+		temp.append("<iq")
+		.append(" from='").append(jid.getJabberID()).append("/").append(jid.getResource()).append("'")
+		.append(" id='" + threadID).append("'")
+		.append(" type='").append("get").append("'>")
+		.append(" <query xmlns='jabber:iq:roster'/>")
+		.append("</iq>");
+		
+		String messageToSend = temp.toString();
+		System.out.println("Sending this query: " + messageToSend);
+		writer.write(messageToSend);
+        writer.flush();
 	}
 	
     // Generate a random chatID based on current timestamp
