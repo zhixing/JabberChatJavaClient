@@ -162,9 +162,17 @@ public class JabberMain {
     	System.out.println("Start chatting with " + receiver);
     	
 		String currentLine = in.readLine();
-		while (!currentLine.equals("@end")){
+		String command = getWordAtIndex(0, currentLine);
+		while (!command.equals("@end")){
+			if (command.equals("@chat")){
+				String receiverEmail = getWordAtIndex(1, currentLine);
+				beginChattingSession(receiverEmail);
+				return;
+			}
 			senderReceiver.sendMessageToClient(currentLine, receiver);
+			
 			currentLine = in.readLine();
+			command = getWordAtIndex(0, currentLine);
 		}
 		
 		System.out.println("Ended chatting with " + receiver);
