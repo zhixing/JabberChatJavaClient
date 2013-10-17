@@ -1,18 +1,36 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.net.Socket;
+import java.sql.Timestamp;
+import java.util.Random;
 
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
+import org.apache.commons.codec.digest.DigestUtils;
 
-public class XmppReceiver implements Runnable{
-	
+
+public class XmppSenderReceiver implements Runnable{
 	private XmppConnection connection;
+	private Socket socket;
+	private BufferedReader reader;
+	private BufferedWriter writer;
 	private XMLStreamReader parser;
+	private JabberID jid;
+	private String threadID;
 	
-	public XmppReceiver(XmppConnection connection){
+	private String currentRecepientResource = "";
+		
+	public XmppSenderReceiver(XmppConnection connection){
 		this.connection = connection;
+		this.socket = connection.getSocket();
+	    this.reader = connection.getReader();
+	    this.writer = connection.getWriter();
 	    this.parser = connection.getParser();
+	    this.jid = connection.getJabberID();
+	    this.threadID = generateThreadID();
 	}
 	
 	@Override
@@ -39,7 +57,7 @@ public class XmppReceiver implements Runnable{
 		        			handleQuery();
 		        			break;
 		        		default:
-		        			System.out.println("XmppReceiver received a non-supported tag: " + localName);
+		        			//System.out.println("XmppReceiver received a non-supported tag: " + localName);
 		        			break;
 		        	}
 	        	}
@@ -61,6 +79,7 @@ public class XmppReceiver implements Runnable{
 			// Firstly, traverse through all attributes on this START_ELEMENT, and see who is the sender
 			int count = parser.getAttributeCount();
 			String sender = "";
+			String thread = "";
 			
 			for (int i = 0; i < count; i++) {
 				// Returns the localName of the attribute at the provided index
@@ -75,15 +94,17 @@ public class XmppReceiver implements Runnable{
 			int eventType = parser.next();
 			
 			// While it's not the closing tag: </message>:
+		
 			while (eventType != XMLStreamConstants.END_DOCUMENT || !parser.getLocalName().equals("message")) {
-
 					// Check if the parse event is a XML start tag, and it's a "body"
 					if (eventType == XMLStreamConstants.START_ELEMENT && parser.getLocalName().equals("body")) {
-						
-							System.out.println(getSenderEmail(sender) + " says: " + parser.getElementText());				
-					} 
+							System.out.println(getSenderEmail(sender) + " says: " + parser.getElementText());	
+							break;
+					}
 					eventType = parser.next();
 			}
+			
+			
 		} catch (XMLStreamException e) {
 			System.err.println("Error detected when handling a new message. In XmppReceiver");
 			e.printStackTrace();
@@ -94,11 +115,7 @@ public class XmppReceiver implements Runnable{
 		
 	}
 	
-	/** senderID is in the format of: sender@email.com/resource 
-	 * 
-	 * @param senderID
-	 * @return senderID minus the resource
-	 */
+	/** senderID is in the format of: sender@email.com/resource 	 */
 	private String getSenderEmail(String senderID){
 		if (senderID.indexOf("/") == -1){
 			return senderID;
@@ -107,6 +124,60 @@ public class XmppReceiver implements Runnable{
 		}
 	}
 	
-
+	/** senderID is in the format of: sender@email.com/resource 
+	 * 
+	 * 	@return "/resource"
+	 */
+	private String getSenderResource(String senderID){
+		if (senderID.indexOf("/") == -1){
+			return "";
+		} else{
+			return senderID.substring(senderID.indexOf("/"));
+		}
+	}
 	
+	
+	
+	
+	/** One-to-one chat session
+	 * message format:
+	 * 	<message
+	       from='romeo@example.net/orchard'
+	       id='sl3nx51f'
+	       to='juliet@example.com/balcony'
+	       type='chat'
+	       xml:lang='en'>
+     	<body>Neither, fair saint, if either thee dislike.</body>
+   		</message>
+	 * @param message
+	 * @param receiver
+	 * @throws IOException
+	 */
+	public void sendMessageToClient(String message, String receiver) throws IOException {
+				
+		StringBuilder temp = new StringBuilder();
+		temp.append("<message")
+		.append(" from='").append(jid.getJabberID()).append("/").append(jid.getResource()).append("'")
+		//.append(" id='" + chatID).append("'")
+		.append(" to='" + receiver).append(currentRecepientResource).append("'")
+		.append(" type='").append("chat").append("'")
+		.append(" xml:lang='en'>")
+		.append(" <body>" + message + "</body>")
+		.append("<thread>" + threadID + "</thread>")
+		.append("</message>");
+		
+		String messageToSend = temp.toString();
+		
+		//System.out.println("Sending this message: " + messageToSend);
+		
+		writer.write(messageToSend);
+        writer.flush();
+        
+	}
+	
+    // Generate a random chatID based on current timestamp
+	private String generateThreadID(){
+	    Random rn = new Random();
+	    return Integer.toString(rn.nextInt());
+	}
 }

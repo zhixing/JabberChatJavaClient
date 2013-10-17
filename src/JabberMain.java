@@ -32,6 +32,7 @@ public class JabberMain {
     private static XmppConnection connection = null;
     private static InputStreamReader streamReader;
     private static BufferedReader in;
+    private static XmppSenderReceiver senderReceiver;
 
     /** Main method that starts off everything. */
     public static void main( String[] args ) {
@@ -69,8 +70,8 @@ public class JabberMain {
             System.out.println( "Welcome " + jid.getJabberID() + "/" + jid.getResource() + " ! " );
             
             // Start the XmppReceiver on another thread:
-            XmppReceiver receiver = new XmppReceiver(connection);
-            Thread newThread = new Thread(receiver);
+            senderReceiver = new XmppSenderReceiver(connection);
+            Thread newThread = new Thread(senderReceiver);
             newThread.start();
 
             // Begin user interaction:
@@ -148,11 +149,9 @@ public class JabberMain {
     private static void beginChattingSession (String receiver)throws IOException{
     	System.out.println("Start chatting with " + receiver);
     	
-    	XmppSender sender = new XmppSender(connection);
 		String currentLine = in.readLine();
 		while (!currentLine.equals("@end")){
-			System.out.println(currentLine);
-			sender.sendMessageToClient(currentLine, receiver);
+			senderReceiver.sendMessageToClient(currentLine, receiver);
 			currentLine = in.readLine();
 		}
 		
