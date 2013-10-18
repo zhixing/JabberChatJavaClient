@@ -79,7 +79,7 @@ public class XmppSenderReceiver implements Runnable{
 	            try {
 					eventType = parser.next();
 				} catch (XMLStreamException e) {
-					System.err.println("Error detected when trying to get the next() from parser. In XmppReceiver");
+					
 				}
 	        }
 		}
@@ -263,11 +263,9 @@ public class XmppSenderReceiver implements Runnable{
 		
 		// Connect to the server
 		
-		System.out.println("Connecting to " + serverName
-		                + " on port " + portNumber);
+		//System.out.println("Connecting to " + serverName + " on port " + portNumber);
 		Socket client = new Socket(serverName, portNumber);
-		System.out.println("Just connected to "
-		         + client.getRemoteSocketAddress());
+		//System.out.println("Just connected to " + client.getRemoteSocketAddress());
 		
 		PrintWriter outWritter =
 		        new PrintWriter(client.getOutputStream(), true);
@@ -283,7 +281,7 @@ public class XmppSenderReceiver implements Runnable{
 		
 		outWritter.close();
 		client.close();
-		System.out.println("connection closed");
+		System.out.println("Conversation History Saved.");
 	}
 	
 	private String generateTimeStamp(){

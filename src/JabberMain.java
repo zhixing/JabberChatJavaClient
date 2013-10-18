@@ -143,6 +143,8 @@ public class JabberMain {
             // Close the connection
             try {
                 connection.close();
+                stopreconnectionThread();
+                stopreSenderReceiverThread();
                 stopKeepAliveTimer();
             }
             catch ( Exception e ) {
@@ -179,6 +181,7 @@ public class JabberMain {
 		String command = getWordAtIndex(0, currentLine);
 		while (!command.equals("@end")){
 			if (command.equals("@chat")){
+				saveConversationHistory();
 				System.out.println("Ended chatting with " + receiver);
 				String receiverEmail = getWordAtIndex(1, currentLine);
 				beginChattingSession(receiverEmail);
@@ -199,16 +202,20 @@ public class JabberMain {
 			command = getWordAtIndex(0, currentLine);
 		}
 		
-		try {
+		saveConversationHistory();
+		
+		System.out.println("Ended chatting with " + receiver);
+    }
+    
+    private static void saveConversationHistory(){
+    	try {
 			senderReceiver.sendLogToServer(conversationLog);
+			// After saving the log, empty the log,
+			conversationLog.clear();
 		} catch (Exception e) {
 			System.out.println("Error when saving log to server");
 			e.printStackTrace();
 		}
-		
-		// After saving the log, empty the log,
-		conversationLog.clear();
-		System.out.println("Ended chatting with " + receiver);
     }
     
     /** Receives a message. Called by the parallel thread in XmppSenderReceiver.java */
@@ -344,4 +351,23 @@ public class JabberMain {
 			keepAliveTimer = null;
 		}
 	}
+    
+    private static void stopreconnectionThread() throws InterruptedException {
+		if(reconnectionThread != null) {
+			Thread thread = reconnectionThread;
+			reconnectionThread = null;
+			thread.interrupt();
+			thread.join();
+		}
+	}
+    
+    private static void stopreSenderReceiverThread() throws InterruptedException {
+		if(senderReceiverThread != null) {
+			Thread thread = senderReceiverThread;
+			senderReceiverThread = null;
+			thread.interrupt();
+			thread.join();
+		}
+	}
+    
 }
