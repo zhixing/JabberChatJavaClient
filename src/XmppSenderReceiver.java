@@ -33,6 +33,7 @@ public class XmppSenderReceiver implements Runnable{
 	private XMLStreamReader parser;
 	private JabberID jid;
 	private String threadID;
+	private boolean isSomeoneWriting = false;
 	
 	private String currentRecepientResource = "";
 		
@@ -181,8 +182,19 @@ public class XmppSenderReceiver implements Runnable{
 	/** send the presence signal */
 	public void sendPresence() throws IOException {
 		System.out.println("Presence signal sent");
-		writer.write("<presence/>");
-		writer.flush();
+		try{
+			while (isSomeoneWriting){
+				// Keep waiting
+			}
+			isSomeoneWriting = true;
+			writer.write("<presence/>");
+			isSomeoneWriting = false;
+			
+			writer.flush();
+		} catch (Exception e){
+			isSomeoneWriting = false;
+			throw e;
+		}
 	}
 	
 	/** One-to-one chat session
@@ -215,15 +227,37 @@ public class XmppSenderReceiver implements Runnable{
 		String messageToSend = temp.toString();
 		
 		//System.out.println("Sending this message: " + messageToSend);
-		
-		writer.write(messageToSend);
-        writer.flush();
+		try{
+			while (isSomeoneWriting){
+				// Keep waiting
+			}
+			isSomeoneWriting = true;
+			writer.write(messageToSend);
+			isSomeoneWriting = false;
+	
+	        writer.flush();
+		} catch (Exception e){
+			isSomeoneWriting = false;
+			throw e;
+		}
         
 	}
 	
 	public void sendKeepAlivePacket() throws IOException {
-		writer.write(" ");
-        writer.flush();
+		while (isSomeoneWriting){
+			// Keep waiting
+		}
+		
+		try {
+			isSomeoneWriting = true;
+			writer.write(" ");
+			isSomeoneWriting = false;
+	        writer.flush();
+
+		} catch (Exception e){
+			isSomeoneWriting = false;
+			throw e;
+		}
     }
 	
 	/**
@@ -245,8 +279,21 @@ public class XmppSenderReceiver implements Runnable{
 		
 		String messageToSend = temp.toString();
 		//System.out.println("Sending this query: " + messageToSend);
-		writer.write(messageToSend);
-        writer.flush();
+		
+		try{
+			while (isSomeoneWriting){
+				// Keep waiting
+			}
+			isSomeoneWriting = true;
+			writer.write(messageToSend);
+			isSomeoneWriting = false;
+			
+	        writer.flush();
+	        
+		} catch (Exception e){
+			isSomeoneWriting = false;
+			throw e;
+		}
 	}
 	
     // Generate a random chatID based on current timestamp

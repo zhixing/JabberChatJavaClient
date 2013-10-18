@@ -347,7 +347,7 @@ public class JabberMain {
 					handleDisconnection();
 				}
 			}
-		}, 300, 300000); // (task, delay, period), 5 min by default
+		}, 3000, 3000); // (task, delay, period), 5 min by default
 	}
     
     private static void stopKeepAliveTimer() {
