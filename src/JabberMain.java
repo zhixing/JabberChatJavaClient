@@ -37,7 +37,7 @@ public class JabberMain {
     private static Thread senderReceiverThread = null;
     private static XmppSenderReceiver senderReceiver;
 	private static Timer keepAliveTimer;
-	private static ArrayList<String> conversationLog;
+	private static ArrayList<String> conversationLog = new ArrayList<String>();
 
 
     /** Main method that starts off everything. */
@@ -79,7 +79,7 @@ public class JabberMain {
                 senderReceiver = new XmppSenderReceiver(connection);
                 senderReceiverThread = new Thread(senderReceiver);
                 senderReceiverThread.start();
-                startKeepAliveTimer();
+                //startKeepAliveTimer();
                 
             } catch (Exception e){
             	startReconnecting();
@@ -278,7 +278,7 @@ public class JabberMain {
 							senderReceiver = new XmppSenderReceiver(connection);
 			                senderReceiverThread = new Thread(senderReceiver);
 			                senderReceiverThread.start();
-			                startKeepAliveTimer();
+			                //startKeepAliveTimer();
 							
 							System.out.println("Re-Connection successful!");
 							break;
