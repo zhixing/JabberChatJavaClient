@@ -168,7 +168,12 @@ public class XmppSenderReceiver implements Runnable{
 	}
 	
 	
-	
+	/** send the presence signal */
+	public void sendPresence() throws IOException {
+		System.out.println("Presence signal sent");
+		writer.write("<presence/>");
+		writer.flush();
+	}
 	
 	/** One-to-one chat session
 	 * message format:

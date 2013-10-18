@@ -79,7 +79,8 @@ public class JabberMain {
                 senderReceiver = new XmppSenderReceiver(connection);
                 senderReceiverThread = new Thread(senderReceiver);
                 senderReceiverThread.start();
-                //startKeepAliveTimer();
+                startKeepAliveTimer();
+                senderReceiver.sendPresence();
                 
             } catch (Exception e){
             	startReconnecting();
@@ -278,7 +279,8 @@ public class JabberMain {
 							senderReceiver = new XmppSenderReceiver(connection);
 			                senderReceiverThread = new Thread(senderReceiver);
 			                senderReceiverThread.start();
-			                //startKeepAliveTimer();
+			                startKeepAliveTimer();
+			                senderReceiver.sendPresence();
 							
 							System.out.println("Re-Connection successful!");
 							break;
@@ -333,7 +335,7 @@ public class JabberMain {
 					handleDisconnection();
 				}
 			}
-		}, 10000, 10000);
+		}, 300000, 300000);
 	}
     
     private static void stopKeepAliveTimer() {
