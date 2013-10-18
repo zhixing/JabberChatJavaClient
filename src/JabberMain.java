@@ -241,7 +241,7 @@ public class JabberMain {
 						int backoffTime = calculateExponentialBackoff(numOfAttempts, maxNumOfAttempts);
 
 						if(numOfAttempts > 0) {
-							System.out.println("Waiting for" + backoffTime / 1000 + "s till re-connect");
+							System.out.println("Waiting for " + backoffTime / 1000 + "s till re-connect");
 						}
 						
 						Thread.sleep(backoffTime);
