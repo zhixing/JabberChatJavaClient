@@ -1,8 +1,13 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Date;
@@ -16,6 +21,8 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 import org.apache.commons.codec.digest.DigestUtils;
+
+import java.net.*;
 
 
 public class XmppSenderReceiver implements Runnable{
@@ -247,34 +254,39 @@ public class XmppSenderReceiver implements Runnable{
 	
 	public void sendLogToServer(ArrayList<String> log) throws Exception {
 		
-		Socket socket = new Socket();
-		String serverDomain = "localhost";
+		//Socket socket = new Socket();
+		String serverName = "localhost";
 		int portNumber = 9119;
 		
 		// Connect to the server
-		socket.connect(new InetSocketAddress(serverDomain, portNumber), 8188);
-		System.out.println("Connected to " + serverDomain + " at port " + portNumber);
 		
-		reader = new BufferedReader(new InputStreamReader( socket.getInputStream(), "UTF-8" ));
-		writer = new BufferedWriter(new OutputStreamWriter( socket.getOutputStream(), "UTF-8" ));
+		System.out.println("Connecting to " + serverName
+		                + " on port " + portNumber);
+		Socket client = new Socket(serverName, portNumber);
+		System.out.println("Just connected to "
+		         + client.getRemoteSocketAddress());
+		OutputStream outToServer = client.getOutputStream();
+		DataOutputStream out =
+		          new DataOutputStream(outToServer);
 		
-		writer.write("fileName:" + jid.getUsername() + "_" + generateTimeStamp());
-		writer.newLine();
 		
-		for (String newEntry : log) {
-			writer.write(newEntry);
-			writer.newLine();
+		// Write the file name:
+		out.writeUTF(jid.getUsername() + "_" + generateTimeStamp());
+		out.writeUTF("\n");
+
+		// Write the file content:
+		for (String newEntry : log) {	
+			System.out.println("Sending: " + newEntry);
+			out.writeUTF(newEntry);
+			out.writeUTF("\n");
 		}
-		
-		writer.write("END");
-		writer.newLine();
-		writer.flush();
-		socket.close();
+		client.close();
+		System.out.println("connection close");
 	}
 	
 	private String generateTimeStamp(){
 		Date date = new Date();
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy_dd_MM_hh_mm:ss");
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss");
 		String formattedDate = sdf.format(date);
 		
 		return formattedDate;

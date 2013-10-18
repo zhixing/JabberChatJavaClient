@@ -67,19 +67,29 @@ class ThreadedEchoHandler implements Runnable
             OutputStream outStream = incoming.getOutputStream();
             
             Scanner in = new Scanner(inStream);         
-            PrintWriter out = new PrintWriter(outStream, true /* autoFlush */);
+            String fileName = in.nextLine();
+            System.out.println("File name: " + fileName + ".txt");
+            BufferedWriter out = new BufferedWriter(new FileWriter(fileName.trim() + ".txt"));
             
-            out.println( "Hello! Enter BYE to exit." );
-            
-            // echo client input
             boolean done = false;
+            boolean first = true;
             while (!done && in.hasNextLine())
-            {  
-               String line = in.nextLine();            
-               out.println("Echo: " + line);            
-               if (line.trim().equals("BYE"))
-                  done = true;
-            }
+              {  
+                 String line = in.nextLine();   
+                 
+                 // Trim off the first character of subsequent lines:
+//                 if (!first){
+//                	 line = line.substring(1);
+//                 }else{
+//                	 first = false;
+//                 }
+                 System.out.println("Received: " + line);   
+                 out.write(line);
+                 out.newLine();
+                 if (line.trim().equals("BYE"))
+                    done = true;
+              }
+            out.close();
          }
          finally
          {
