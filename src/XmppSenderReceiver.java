@@ -244,7 +244,7 @@ public class XmppSenderReceiver implements Runnable{
 		.append("</iq>");
 		
 		String messageToSend = temp.toString();
-		System.out.println("Sending this query: " + messageToSend);
+		//System.out.println("Sending this query: " + messageToSend);
 		writer.write(messageToSend);
         writer.flush();
 	}

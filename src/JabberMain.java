@@ -133,19 +133,19 @@ public class JabberMain {
         catch ( Exception e ) {
             System.err.println( "Encountered exception in main method" );
             e.printStackTrace();
-
             // If there is any exception, it gets thrown up here to main()
             //  (or the run() method of your thread, if you use a thread).
-            // In Task 2, you need to re-connect to the server, instead of
-            //  simply quitting.
+            // In Task 2, the exceptions and re-connections are handled by the send functions, not there.
         }
         finally {
             // Close the connection
             try {
+            	// Must stop this first, because if we stop the thread/connections first, 
+            	// the timer will detect this and issue order to re-connect
+                stopKeepAliveTimer();
                 connection.close();
                 stopreconnectionThread();
                 stopreSenderReceiverThread();
-                stopKeepAliveTimer();
             }
             catch ( Exception e ) {
                 // Ignore
@@ -309,6 +309,7 @@ public class JabberMain {
     
     /**
      * After the c th failed attempt, resend the frame after k * constant, where k is a random number between 0 and 2^c − 1
+     *  and the constant is a user-defined value
      * @return the backoff time
      */
     private static int calculateExponentialBackoff(int numOfAttempts, int maxNumOfAttempts){
@@ -331,6 +332,10 @@ public class JabberMain {
     }
     
     private static void startKeepAliveTimer() {
+    	if (keepAliveTimer != null){
+    		return;
+    	}
+    	
 		keepAliveTimer = new Timer();
 		keepAliveTimer.schedule(new TimerTask() {
 			@Override
@@ -342,7 +347,7 @@ public class JabberMain {
 					handleDisconnection();
 				}
 			}
-		}, 300000, 300000);
+		}, 300, 300000); // (task, delay, period), 5 min by default
 	}
     
     private static void stopKeepAliveTimer() {
