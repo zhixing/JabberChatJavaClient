@@ -98,6 +98,9 @@ public class XmppSenderReceiver implements Runnable{
 				if (parser.getAttributeLocalName(i).equals("from")) {
 					sender = parser.getAttributeValue(i);
 				}
+				if (parser.getAttributeLocalName(i).equals("type") && parser.getAttributeValue(i).equals("error")) {
+					return;
+				}
 			}
 			
 			// Secondly, traverse through all XML events on the parser, and look for all the "body"
@@ -265,23 +268,22 @@ public class XmppSenderReceiver implements Runnable{
 		Socket client = new Socket(serverName, portNumber);
 		System.out.println("Just connected to "
 		         + client.getRemoteSocketAddress());
-		OutputStream outToServer = client.getOutputStream();
-		DataOutputStream out =
-		          new DataOutputStream(outToServer);
 		
-		
+		PrintWriter outWritter =
+		        new PrintWriter(client.getOutputStream(), true);
+
 		// Write the file name:
-		out.writeUTF(jid.getUsername() + "_" + generateTimeStamp());
-		out.writeUTF("\n");
+		outWritter.println(jid.getUsername() + "_" + generateTimeStamp());
 
 		// Write the file content:
 		for (String newEntry : log) {	
-			System.out.println("Sending: " + newEntry);
-			out.writeUTF(newEntry);
-			out.writeUTF("\n");
+			//System.out.println("Sending: " + newEntry);
+			outWritter.println(newEntry);
 		}
+		
+		outWritter.close();
 		client.close();
-		System.out.println("connection close");
+		System.out.println("connection closed");
 	}
 	
 	private String generateTimeStamp(){
