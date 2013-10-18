@@ -1,8 +1,14 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Date;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Random;
 
 import javax.xml.stream.XMLStreamConstants;
@@ -34,7 +40,7 @@ public class XmppSenderReceiver implements Runnable{
 	}
 	
 	@Override
-	public void run() {
+	public void run(){
 		
 		while(true){
 			
@@ -66,8 +72,7 @@ public class XmppSenderReceiver implements Runnable{
 	            try {
 					eventType = parser.next();
 				} catch (XMLStreamException e) {
-					System.err.println("Error detected when trying to get the next eventType from parser. In XmppReceiver");
-					e.printStackTrace();
+					System.err.println("Error detected when trying to get the next() from parser. In XmppReceiver");
 				}
 	        }
 		}
@@ -98,8 +103,10 @@ public class XmppSenderReceiver implements Runnable{
 			while (eventType != XMLStreamConstants.END_DOCUMENT || !parser.getLocalName().equals("message")) {
 					// Check if the parse event is a XML start tag, and it's a "body"
 					if (eventType == XMLStreamConstants.START_ELEMENT && parser.getLocalName().equals("body")) {
-							System.out.println(getSenderEmail(sender) + " says: " + parser.getElementText());	
-							break;
+						
+						JabberMain.receivedMessage(parser.getElementText(), getSenderEmail(sender));
+						
+						break;
 					}
 					eventType = parser.next();
 			}
@@ -199,6 +206,11 @@ public class XmppSenderReceiver implements Runnable{
         
 	}
 	
+	public void sendKeepAlivePacket() throws IOException {
+		writer.write(" ");
+        writer.flush();
+    }
+	
 	/**
 	 * Message format:
 	 * <iq from='juliet@example.com/balcony'
@@ -226,5 +238,40 @@ public class XmppSenderReceiver implements Runnable{
 	private String generateThreadID(){
 	    Random rn = new Random();
 	    return Integer.toString(rn.nextInt());
+	}
+	
+	public void sendLogToServer(ArrayList<String> log) throws Exception {
+		
+		Socket socket = new Socket();
+		String serverDomain = "localhost";
+		int portNumber = 9119;
+		
+		// Connect to the server
+		socket.connect(new InetSocketAddress(serverDomain, portNumber), 8188);
+		System.out.println("Connected to " + serverDomain + " at port " + portNumber);
+		
+		reader = new BufferedReader(new InputStreamReader( socket.getInputStream(), "UTF-8" ));
+		writer = new BufferedWriter(new OutputStreamWriter( socket.getOutputStream(), "UTF-8" ));
+		
+		writer.write("fileName:" + jid.getUsername() + "_" + generateTimeStamp());
+		writer.newLine();
+		
+		for (String newEntry : log) {
+			writer.write(newEntry);
+			writer.newLine();
+		}
+		
+		writer.write("END");
+		writer.newLine();
+		writer.flush();
+		socket.close();
+	}
+	
+	private String generateTimeStamp(){
+		Date date = new Date();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy_dd_MM_hh_mm:ss");
+		String formattedDate = sdf.format(date);
+		
+		return formattedDate;
 	}
 }

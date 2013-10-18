@@ -28,11 +28,17 @@ import javax.xml.stream.XMLStreamReader;
  */
 public class JabberMain {
 
-    /** XMPP connection. */
+    /** Private variables */
+	private static JabberID jid;
     private static XmppConnection connection = null;
     private static InputStreamReader streamReader;
     private static BufferedReader in;
+    private static Thread reconnectionThread = null;
+    private static Thread senderReceiverThread = null;
     private static XmppSenderReceiver senderReceiver;
+	private static Timer keepAliveTimer;
+	private static ArrayList<String> conversationLog;
+
 
     /** Main method that starts off everything. */
     public static void main( String[] args ) {
@@ -58,21 +64,26 @@ public class JabberMain {
 
             // In this assignment, handling one server is sufficient
             // Create an XMPP connection
-            JabberID jid = jidList.get( 0 );
-            connection = new XmppConnection( jid );
-
-            // Connect to the Jabber server
-            connection.connect();
-
-            // Write code here for the assignment's three tasks...
-            // See the documentation of the XmppConnection class for details.
-            System.out.println();
-            System.out.println( "Welcome " + jid.getJabberID() + "/" + jid.getResource() + " ! " );
+            jid = jidList.get( 0 );
             
-            // Start the XmppReceiver on another thread:
-            senderReceiver = new XmppSenderReceiver(connection);
-            Thread newThread = new Thread(senderReceiver);
-            newThread.start();
+            try {
+            	connection = new XmppConnection( jid );
+            	connection.connect();
+            	
+            	// Write code here for the assignment's three tasks...
+                // See the documentation of the XmppConnection class for details.
+                System.out.println();
+                System.out.println( "Welcome " + jid.getJabberID() + "/" + jid.getResource() + " ! " );
+                
+                // Start the XmppReceiver on another thread:
+                senderReceiver = new XmppSenderReceiver(connection);
+                senderReceiverThread = new Thread(senderReceiver);
+                senderReceiverThread.start();
+                startKeepAliveTimer();
+                
+            } catch (Exception e){
+            	startReconnecting();
+            }
 
             // Begin user interaction:
             
@@ -131,6 +142,7 @@ public class JabberMain {
             // Close the connection
             try {
                 connection.close();
+                stopKeepAliveTimer();
             }
             catch ( Exception e ) {
                 // Ignore
@@ -153,6 +165,7 @@ public class JabberMain {
 		} catch (Exception e) {
 			System.out.println("Error occured when sending request for contact list");
 			e.printStackTrace();
+			handleDisconnection();
 		}
     }
 
@@ -165,17 +178,42 @@ public class JabberMain {
 		String command = getWordAtIndex(0, currentLine);
 		while (!command.equals("@end")){
 			if (command.equals("@chat")){
+				System.out.println("Ended chatting with " + receiver);
 				String receiverEmail = getWordAtIndex(1, currentLine);
 				beginChattingSession(receiverEmail);
 				return;
 			}
-			senderReceiver.sendMessageToClient(currentLine, receiver);
+			
+			try{
+				
+				senderReceiver.sendMessageToClient(currentLine, receiver);
+				conversationLog.add(jid.getUsername() + " says: " + currentLine);
+				
+			} catch (IOException e){
+				System.out.println("Error occured when sending message");
+				handleDisconnection();
+			}
 			
 			currentLine = in.readLine();
 			command = getWordAtIndex(0, currentLine);
 		}
 		
+		try {
+			senderReceiver.sendLogToServer(conversationLog);
+		} catch (Exception e) {
+			System.out.println("Error when saving log to server");
+			e.printStackTrace();
+		}
+		
+		// After saving the log, empty the log,
+		conversationLog.clear();
 		System.out.println("Ended chatting with " + receiver);
+    }
+    
+    /** Receives a message. Called by the parallel thread in XmppSenderReceiver.java */
+    public static void receivedMessage(String message, String sender){
+		System.out.println(sender + " says: " + message);	
+		conversationLog.add(sender + " says: " + message);
     }
     
     /** Get the first word of a string. Words are seperated by space */
@@ -209,5 +247,99 @@ public class JabberMain {
 
         return jidList;
     }
+    
+    /**
+     * Start the reconnecting in another thread.
+     */
+    private static void startReconnecting() {
+    	
+    	reconnectionThread = new Thread() {
+			@Override
+			public void run() {
+				final int maxNumOfAttempts = 10;
+				int numOfAttempts = 0;
+		
+				try {
+					while(reconnectionThread != null) {						
+						// Calculate the exponential backoff time:
+						int backoffTime = calculateExponentialBackoff(numOfAttempts, maxNumOfAttempts);
 
+						if(numOfAttempts > 0) {
+							System.out.println("Waiting " + backoffTime / 1000 + "s");
+						}
+						
+						Thread.sleep(backoffTime);
+						
+						try {
+
+							XmppConnection connection = new XmppConnection(jid);
+							connection.connect();
+							
+							senderReceiver = new XmppSenderReceiver(connection);
+			                senderReceiverThread = new Thread(senderReceiver);
+			                senderReceiverThread.start();
+			                startKeepAliveTimer();
+							
+							System.out.println("Re-Connection successful!");
+							break;
+						} catch (IOException e) {
+							System.out.println("Re-Connection failed!");							
+						}
+						numOfAttempts++;
+					}
+				}
+				catch(Exception e) {
+					System.err.println("Error detected when reconnecting");
+					e.printStackTrace();
+				}
+			}
+		};
+		
+		reconnectionThread.start();
+	}
+    
+    /**
+     * After the c th failed attempt, resend the frame after k * constant, where k is a random number between 0 and 2^c − 1
+     * @return the backoff time
+     */
+    private static int calculateExponentialBackoff(int numOfAttempts, int maxNumOfAttempts){
+    	int constant = 5000; // 5 seconds
+		Random rn = new Random();
+    	int k = Math.min( (int)Math.pow(2, numOfAttempts), maxNumOfAttempts ) - 1;
+		int backoffTime = rn.nextInt(k + 1) * constant;
+		
+		return backoffTime;
+    }
+    
+    /**
+     * Defines a set of instructions when it's disconnected
+     * Called on disconnection.
+     */
+    private static void handleDisconnection(){
+    	stopKeepAliveTimer();
+    	System.out.println("Disconnected!");
+    	startReconnecting();
+    }
+    
+    private static void startKeepAliveTimer() {
+		keepAliveTimer = new Timer();
+		keepAliveTimer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				try {
+					System.out.println("Sending keep-alive packet");
+					senderReceiver.sendKeepAlivePacket();
+				} catch (IOException e) {
+					handleDisconnection();
+				}
+			}
+		}, 10000, 10000);
+	}
+    
+    private static void stopKeepAliveTimer() {
+		if(keepAliveTimer != null) {
+			keepAliveTimer.cancel();
+			keepAliveTimer = null;
+		}
+	}
 }
