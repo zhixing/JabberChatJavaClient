@@ -39,7 +39,6 @@ public class JabberMain {
 	private static Timer keepAliveTimer;
 	private static ArrayList<String> conversationLog = new ArrayList<String>();
 
-
     /** Main method that starts off everything. */
     public static void main( String[] args ) {
 
@@ -173,7 +172,7 @@ public class JabberMain {
     }
 
     
-    /** Chat */
+    /** Start a chat session */
     private static void beginChattingSession (String receiver)throws IOException{
     	System.out.println("Start chatting with " + receiver);
     	
@@ -224,6 +223,133 @@ public class JabberMain {
 		conversationLog.add(sender + " says: " + message);
     }
     
+    
+    /**
+     * When the network fails, Start the reconnecting in another thread.
+     */
+    private static void startReconnecting() {
+    	
+    	reconnectionThread = new Thread() {
+			@Override
+			public void run() {
+				final int maxNumOfAttempts = 10;
+				int numOfAttempts = 0;
+		
+				try {
+					while(reconnectionThread != null) {						
+						// Calculate the exponential back-off time:
+						int backoffTime = calculateExponentialBackoff(numOfAttempts, maxNumOfAttempts);
+
+						if(numOfAttempts > 0) {
+							System.out.println("Waiting for" + backoffTime / 1000 + "s till re-connect");
+						}
+						
+						Thread.sleep(backoffTime);
+						
+						try {
+
+							XmppConnection connection = new XmppConnection(jid);
+							connection.connect();
+							
+							senderReceiver = new XmppSenderReceiver(connection);
+			                senderReceiverThread = new Thread(senderReceiver);
+			                senderReceiverThread.start();
+			                startKeepAliveTimer();
+			                senderReceiver.sendPresence();
+							
+							System.out.println("Re-Connection successful!");
+							break;
+							
+						} catch (IOException e) {
+							System.out.println("Re-Connection failed!");							
+						}
+						numOfAttempts++;
+					}
+				}
+				catch(Exception e) {
+					System.err.println("Error detected when reconnecting");
+					e.printStackTrace();
+				}
+			}
+		};
+		
+		reconnectionThread.start();
+	}
+    
+    /** Start the timer that periodically checks the availability of the network */
+    private static void startKeepAliveTimer() {
+    	if (keepAliveTimer != null){
+    		return;
+    	}
+    	
+		keepAliveTimer = new Timer();
+		keepAliveTimer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				try {
+					System.out.println("Sending keep-alive packet");
+					senderReceiver.sendKeepAlivePacket();
+				} catch (IOException e) {
+					handleDisconnection();
+				}
+			}
+		}, 30000, 30000); // (task, delay, period), 5 min: 5 * 60 * 100 = 30000 by default
+	}
+    
+    /** Stops the keepAliveTimer.
+     *	Called when disconnection happens, or the program terminates.
+     */
+    private static void stopKeepAliveTimer() {
+		if(keepAliveTimer != null) {
+			keepAliveTimer.cancel();
+			keepAliveTimer = null;
+		}
+	}
+    
+    /** Stop the thread where re-connection is happening */
+    private static void stopreconnectionThread() throws InterruptedException {
+		if(reconnectionThread != null) {
+			Thread thread = reconnectionThread;
+			reconnectionThread = null;
+			thread.interrupt();
+			thread.join();
+		}
+	}
+    
+    /** Stop the senderReceverThread, which is the message listener */
+    private static void stopreSenderReceiverThread() throws InterruptedException {
+		if(senderReceiverThread != null) {
+			Thread thread = senderReceiverThread;
+			senderReceiverThread = null;
+			thread.interrupt();
+			thread.join();
+		}
+	}
+    
+    /**
+     * After the c th failed attempt, resend the frame after k * constant, where k is a random number between 0 and 2^c − 1
+     *  and the constant is a user-defined value
+     * @return the backoff time
+     */
+    private static int calculateExponentialBackoff(int numOfAttempts, int maxNumOfAttempts){
+    	int constant = 5000; // 5 seconds by default
+		Random rn = new Random();
+    	int k = Math.min( (int)Math.pow(2, numOfAttempts), maxNumOfAttempts ) - 1;
+		int backoffTime = rn.nextInt(k + 1) * constant;
+		
+		return backoffTime;
+    }
+    
+    /**
+     * Defines a set of instructions when it's disconnected
+     * Called on disconnection.
+     */
+    private static void handleDisconnection(){
+    	stopKeepAliveTimer();
+    	System.out.println("Disconnected!");
+    	startReconnecting();
+    }
+    
     /** Get the first word of a string. Words are seperated by space */
     private static String getWordAtIndex(int index, String string){
     	String arr[] = string.split(" ");
@@ -255,124 +381,5 @@ public class JabberMain {
 
         return jidList;
     }
-    
-    /**
-     * Start the reconnecting in another thread.
-     */
-    private static void startReconnecting() {
-    	
-    	reconnectionThread = new Thread() {
-			@Override
-			public void run() {
-				final int maxNumOfAttempts = 10;
-				int numOfAttempts = 0;
-		
-				try {
-					while(reconnectionThread != null) {						
-						// Calculate the exponential backoff time:
-						int backoffTime = calculateExponentialBackoff(numOfAttempts, maxNumOfAttempts);
-
-						if(numOfAttempts > 0) {
-							System.out.println("Waiting " + backoffTime / 1000 + "s");
-						}
-						
-						Thread.sleep(backoffTime);
-						
-						try {
-
-							XmppConnection connection = new XmppConnection(jid);
-							connection.connect();
-							
-							senderReceiver = new XmppSenderReceiver(connection);
-			                senderReceiverThread = new Thread(senderReceiver);
-			                senderReceiverThread.start();
-			                startKeepAliveTimer();
-			                senderReceiver.sendPresence();
-							
-							System.out.println("Re-Connection successful!");
-							break;
-						} catch (IOException e) {
-							System.out.println("Re-Connection failed!");							
-						}
-						numOfAttempts++;
-					}
-				}
-				catch(Exception e) {
-					System.err.println("Error detected when reconnecting");
-					e.printStackTrace();
-				}
-			}
-		};
-		
-		reconnectionThread.start();
-	}
-    
-    /**
-     * After the c th failed attempt, resend the frame after k * constant, where k is a random number between 0 and 2^c − 1
-     *  and the constant is a user-defined value
-     * @return the backoff time
-     */
-    private static int calculateExponentialBackoff(int numOfAttempts, int maxNumOfAttempts){
-    	int constant = 5000; // 5 seconds
-		Random rn = new Random();
-    	int k = Math.min( (int)Math.pow(2, numOfAttempts), maxNumOfAttempts ) - 1;
-		int backoffTime = rn.nextInt(k + 1) * constant;
-		
-		return backoffTime;
-    }
-    
-    /**
-     * Defines a set of instructions when it's disconnected
-     * Called on disconnection.
-     */
-    private static void handleDisconnection(){
-    	stopKeepAliveTimer();
-    	System.out.println("Disconnected!");
-    	startReconnecting();
-    }
-    
-    private static void startKeepAliveTimer() {
-    	if (keepAliveTimer != null){
-    		return;
-    	}
-    	
-		keepAliveTimer = new Timer();
-		keepAliveTimer.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				try {
-					System.out.println("Sending keep-alive packet");
-					senderReceiver.sendKeepAlivePacket();
-				} catch (IOException e) {
-					handleDisconnection();
-				}
-			}
-		}, 30000, 30000); // (task, delay, period), 5 min: 5 * 60 * 100 = 30000 by default
-	}
-    
-    private static void stopKeepAliveTimer() {
-		if(keepAliveTimer != null) {
-			keepAliveTimer.cancel();
-			keepAliveTimer = null;
-		}
-	}
-    
-    private static void stopreconnectionThread() throws InterruptedException {
-		if(reconnectionThread != null) {
-			Thread thread = reconnectionThread;
-			reconnectionThread = null;
-			thread.interrupt();
-			thread.join();
-		}
-	}
-    
-    private static void stopreSenderReceiverThread() throws InterruptedException {
-		if(senderReceiverThread != null) {
-			Thread thread = senderReceiverThread;
-			senderReceiverThread = null;
-			thread.interrupt();
-			thread.join();
-		}
-	}
     
 }
